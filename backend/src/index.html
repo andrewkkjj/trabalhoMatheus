@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plataforma de Gerenciamento de Backup</title>
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --border: #cbd5e1;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #d97706;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 20px; line-height: 1.5; }
+    .container { max-width: 1000px; margin: 0 auto; display: grid; gap: 20px; }
+
+    header { background-color: var(--primary); color: white; padding: 20px; border-radius: 8px; }
+    header h1 { font-size: 1.5rem; }
+
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 1.2rem; margin-bottom: 15px; border-bottom: 2px solid var(--bg); padding-bottom: 8px; color: var(--primary); }
+
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full-width { grid-column: 1 / -1; }
+    label { font-weight: 600; font-size: 0.9rem; }
+    input[type="text"], input[type="number"], input[type="password"], select {
+      padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem;
+    }
+
+    .checkbox-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+    .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+
+    .actions { display: flex; gap: 10px; margin-top: 20px; }
+    button {
+      padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #64748b; color: white; }
+    .btn-secondary:hover { background: #475569; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Status e Progresso */
+    .progress-bar-container { width: 100%; background: #e2e8f0; border-radius: 8px; height: 12px; overflow: hidden; margin: 15px 0; }
+    .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s ease; }
+    .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    .status-SUCCESS { background: #dcfce7; color: var(--success); }
+    .status-FAILED { background: #fee2e2; color: var(--danger); }
+    .status-RUNNING { background: #fef3c7; color: var(--warning); }
+
+    /* Tabelas */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 10px; text-align: left; }
+    th { background: #f1f5f9; }
+
+    /* Modal Log */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal.active { display: flex; }
+    .modal-content { background: white; padding: 20px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    pre { background: #0f172a; color: #f8fafc; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Plataforma de Gerenciamento de Backup</h1>
+  </header>
+
+  <!-- FORMULÁRIO DE CONFIGURAÇÃO -->
+  <div class="card">
+    <h2>1. Configuração de Conexão e Parâmetros</h2>
+    <form id="backupForm">
+      <div class="form-grid">
+        <!-- Obrigatórios -->
+        <div class="form-group">
+          <label for="bancoDeDados">Banco de dados *</label>
+          <input type="text" id="bancoDeDados" required placeholder="ex: producao_db">
+        </div>
+
+        <div class="form-group">
+          <label for="caminhoDestino">Caminho de Destino Principal *</label>
+          <input type="text" id="caminhoDestino" required placeholder="ex: /var/backups/principal">
+        </div>
+
+        <!-- Opcionais -->
+        <div class="form-group">
+          <label for="quantidadeAManter">Quantidade a manter (retenção)</label>
+          <input type="number" id="quantidadeAManter" min="1" placeholder="ex: 5">
+        </div>
+
+        <div class="form-group">
+          <label for="caminhoCopiaAdicional">Caminho de cópia adicional</label>
+          <input type="text" id="caminhoCopiaAdicional" placeholder="ex: /mnt/storage/secundario">
+        </div>
+
+        <div class="form-group">
+          <label for="senhaCriptografia">Chave AES / Senha do ZIP</label>
+          <input type="password" id="senhaCriptografia" placeholder="Senha para proteção dos ficheiros">
+        </div>
+      </div>
+
+      <div class="checkbox-group">
+        <label class="checkbox-item">
+          <input type="checkbox" id="executarManutencao"> Executar manutenção antes
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="manutencaoCompleta"> Manutenção completa (VACUUM FULL ANALYZE)
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="criptografar"> Criptografar (AES)
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="compactar"> Compactar (ZIP)
+        </label>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn-secondary" id="btnTestConnection">Testar Conexão</button>
+        <button type="submit" class="btn-primary" id="btnStartProcess">Iniciar Backup</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- PAINEL DE ACOMPANHAMENTO -->
+  <div class="card" id="statusCard" style="display:none;">
+    <h2>2. Acompanhamento em Tempo Real</h2>
+    <p><strong>Etapa Atual:</strong> <span id="currentStep">Aguardando início...</span></p>
+    <div class="progress-bar-container">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <p><strong>Status:</strong> <span id="statusBadge" class="status-badge status-RUNNING">EM EXECUÇÃO</span></p>
+  </div>
+
+  <!-- HISTÓRICO DE EXECUÇÕES -->
+  <div class="card">
+    <h2>3. Histórico de Execuções</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Data/Hora</th>
+          <th>Banco</th>
+          <th>Decisão de Manutenção</th>
+          <th>Status</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="historyTableBody">
+        <tr>
+          <td colspan="5" style="text-align:center;">Nenhum backup executado ainda.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL DE LOGS -->
+<div class="modal" id="logModal">
+  <div class="modal-content">
+    <h2>Detalhes da Execução / Log Técnico</h2>
+    <pre id="logContent">Carregando...</pre>
+    <div class="actions" style="justify-content: flex-end;">
+      <button class="btn-secondary" onclick="closeModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_URL = "/api/backup"; // Ajuste conforme as rotas do seu backend
+
+  // ELEMENTOS DOM
+  const backupForm = document.getElementById("backupForm");
+  const btnTestConnection = document.getElementById("btnTestConnection");
+  const statusCard = document.getElementById("statusCard");
+  const currentStep = document.getElementById("currentStep");
+  const progressBar = document.getElementById("progressBar");
+  const statusBadge = document.getElementById("statusBadge");
+  const historyTableBody = document.getElementById("historyTableBody");
+  const logModal = document.getElementById("logModal");
+  const logContent = document.getElementById("logContent");
+
+  let history = [];
+
+  // 1. TESTAR CONEXÃO (GET /connection)
+  btnTestConnection.addEventListener("click", async () => {
+    btnTestConnection.disabled = true;
+    try {
+      const response = await fetch(`${API_URL}/connection`);
+      const data = await response.json();
+      if (response.ok) {
+        alert("✅ Conexão estabelecida com sucesso!");
+      } else {
+        alert(`❌ Falha na conexão: ${data.error || 'Erro desconhecido'}`);
+      }
+    } catch (err) {
+      alert("❌ Erro de rede ao tentar conectar ao servidor.");
+    } finally {
+      btnTestConnection.disabled = false;
+    }
+  });
+
+  // 2. INICIAR PROCESSO DE BACKUP (POST /run)
+  backupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // Confirmação para operação potencialmente bloqueante (Requisito)
+    const confirmRun = confirm("Deseja realmente iniciar o processo de backup? Operações de manutenção podem demorar.");
+    if (!confirmRun) return;
+
+    // Coleta parâmetros do formulário
+    const payload = {
+      bancoDeDados: document.getElementById("bancoDeDados").value,
+      caminhoDestino: document.getElementById("caminhoDestino").value,
+      quantidadeAManter: document.getElementById("quantidadeAManter").value ? Number(document.getElementById("quantidadeAManter").value) : null,
+      caminhoCopiaAdicional: document.getElementById("caminhoCopiaAdicional").value || null,
+      executarManutencao: document.getElementById("executarManutencao").checked,
+      manutencaoCompleta: document.getElementById("manutencaoCompleta").checked,
+      criptografar: document.getElementById("criptografar").checked,
+      compactar: document.getElementById("compactar").checked,
+      senha: document.getElementById("senhaCriptografia").value || null
+    };
+
+    // Prepara painel visual
+    statusCard.style.display = "block";
+    updateProgress(10, "Validando parâmetros e conexão...", "RUNNING");
+
+    try {
+      updateProgress(30, "Analisando necessidade de manutenção...", "RUNNING");
+      
+      const response = await fetch(`${API_URL}/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        updateProgress(100, "Processo concluído com sucesso!", "SUCCESS");
+        addHistoryRecord({
+          data: new Date().toLocaleString("pt-BR"),
+          banco: payload.bancoDeDados,
+          manutencao: result.decisaoManutencao || "Automática (Sem intervenção)",
+          status: "SUCCESS",
+          log: JSON.stringify(result, null, 2)
+        });
+      } else {
+        updateProgress(100, `Falha na etapa: ${result.etapaFalha || 'Geral'}`, "FAILED");
+        addHistoryRecord({
+          data: new Date().toLocaleString("pt-BR"),
+          banco: payload.bancoDeDados,
+          manutencao: "N/A",
+          status: "FAILED",
+          log: JSON.stringify(result, null, 2)
+        });
+        alert(`❌ Erro durante o processo: ${result.error || 'Verifique os logs.'}`);
+      }
+    } catch (err) {
+      updateProgress(100, "Erro crítico na comunicação com o servidor.", "FAILED");
+      alert("❌ Falha crítica de conexão.");
+    }
+  });
+
+  // Atualiza a barra de progresso e texto da etapa
+  function updateProgress(percentage, stepText, status) {
+    progressBar.style.width = `${percentage}%`;
+    currentStep.innerText = stepText;
+    statusBadge.innerText = status === "SUCCESS" ? "CONCLUÍDO" : status === "FAILED" ? "FALHOU" : "EM EXECUÇÃO";
+    statusBadge.className = `status-badge status-${status}`;
+  }
+
+  // Adiciona item ao Histórico
+  function addHistoryRecord(record) {
+    history.unshift(record);
+    renderHistory();
+  }
+
+  function renderHistory() {
+    if (history.length === 0) return;
+    historyTableBody.innerHTML = history.map((item, index) => `
+      <tr>
+        <td>${item.data}</td>
+        <td>${item.banco}</td>
+        <td>${item.manutencao}</td>
+        <td><span class="status-badge status-${item.status}">${item.status}</span></td>
+        <td><button class="btn-secondary" style="padding: 4px 8px; font-size: 0.8rem;" onclick="viewLog(${index})">Ver Log</button></td>
+      </tr>
+    `).join('');
+  }
+
+  // Modal de Logs
+  function viewLog(index) {
+    logContent.innerText = history[index].log;
+    logModal.classList.add("active");
+  }
+
+  function closeModal() {
+    logModal.classList.remove("active");
+  }
+</script>
+</body>
+</html>

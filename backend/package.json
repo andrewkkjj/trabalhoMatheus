@@ -1,0 +1,20 @@
+{
+  "name": "hotel-backup-backend",
+  "version": "1.0.0",
+  "description": "Backend da plataforma de manutenção e backup do banco do hotel",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
