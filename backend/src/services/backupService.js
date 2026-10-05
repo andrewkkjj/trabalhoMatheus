@@ -12,39 +12,68 @@ function safeFileName(value) {
 }
 
 function runPgDump(destination) {
-  return new Promise((resolve, reject) => {
-    ensureDirectory(path.dirname(destination));
+    return new Promise((resolve, reject) => {
 
-    const args = [
-      "-h", process.env.DB_HOST,
-      "-p", String(process.env.DB_PORT || 5432),
-      "-U", process.env.DB_USER,
-      "-d", process.env.DB_NAME,
-      "-F", "c",
-      "-f", destination
-    ];
+        ensureDirectory(path.dirname(destination));
 
-    const child = spawn(process.env.PG_DUMP_PATH || "pg_dump", args, {
-      env: {
-        ...process.env,
-        PGPASSWORD: process.env.DB_PASSWORD
-      },
-      windowsHide: true
+        const pgDumpPath =
+            process.env.PG_DUMP_PATH ||
+            "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_dump.exe";
+
+        console.log("Executando pg_dump:");
+        console.log(pgDumpPath);
+
+        const args = [
+            "-h", process.env.DB_HOST,
+            "-p", String(process.env.DB_PORT || 5432),
+            "-U", process.env.DB_USER,
+            "-d", process.env.DB_NAME,
+            "-F", "c",
+            "-f", destination
+        ];
+
+        const child = spawn(
+            pgDumpPath,
+            args,
+            {
+                env: {
+                    ...process.env,
+                    PGPASSWORD: String(process.env.DB_PASSWORD)
+                },
+                windowsHide: true,
+                shell: false
+            }
+        );
+
+        let stderr = "";
+
+        child.stderr.on("data", (chunk) => {
+            stderr += chunk.toString();
+        });
+
+        child.on("error", (error) => {
+            console.error("Erro ao iniciar pg_dump:");
+            console.error(error);
+
+            reject(error);
+        });
+
+        child.on("close", (code) => {
+
+            if (code === 0) {
+                console.log("Backup PostgreSQL criado com sucesso.");
+                resolve();
+                return;
+            }
+
+            reject(
+                new Error(
+                    stderr.trim() ||
+                    `pg_dump terminou com código ${code}`
+                )
+            );
+        });
     });
-
-    let stderr = "";
-
-    child.stderr.on("data", chunk => {
-      stderr += chunk.toString();
-    });
-
-    child.on("error", reject);
-
-    child.on("close", code => {
-      if (code === 0) resolve();
-      else reject(new Error(stderr.trim() || `pg_dump terminou com código ${code}`));
-    });
-  });
 }
 
 function encryptFile(input, output) {

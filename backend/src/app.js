@@ -1,24 +1,60 @@
-const express = require("express");
 const path = require("path");
-const backupRoutes = require("./routes/backupRoutes"); // Ajusta se o nome/caminho for diferente
 
-const app = express();
-
-// Middleware para processar JSON no corpo das requisições
-app.use(express.json());
-
-// 1. Servir o ficheiro index.html na rota raiz (http://localhost:3000/)
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+// Carrega o arquivo .env que está na pasta backend
+require("dotenv").config({
+    path: path.resolve(__dirname, "../.env")
 });
 
-// 2. Se tiveres outros ficheiros estáticos em src (como CSS ou JS externos)
+// Verificação das configurações
+// Não mostra a senha, apenas verifica se ela foi carregada.
+console.log("=== CONFIGURAÇÃO ===");
+console.log("DB_HOST:", process.env.DB_HOST);
+console.log("DB_PORT:", process.env.DB_PORT);
+console.log("DB_NAME:", process.env.DB_NAME);
+console.log("DB_USER:", process.env.DB_USER);
+console.log(
+    "DB_PASSWORD carregada:",
+    typeof process.env.DB_PASSWORD
+);
+console.log("====================");
+
+// Importações
+const express = require("express");
+const backupRoutes = require("./routes/backupRoutes");
+
+// Aplicação Express
+const app = express();
+
+// Permite receber JSON
+app.use(express.json());
+
+// Arquivos estáticos da pasta src
 app.use(express.static(__dirname));
 
-// 3. Rotas da API
-app.use("/api/backup", backupRoutes);
+// Página inicial
+app.get("/", (req, res) => {
+    res.sendFile(
+        path.join(__dirname, "index.html")
+    );
+});
 
+// Rotas da API
+app.use(
+    "/api/backup",
+    backupRoutes
+);
+
+// Porta
 const PORT = process.env.PORT || 3000;
+
+// Inicia servidor
 app.listen(PORT, () => {
-  console.log(`Hotel Backup API rodando em http://localhost:${PORT}`);
+    console.log("");
+    console.log(
+        `Hotel Backup API rodando em http://localhost:${PORT}`
+    );
+
+    console.log(
+        `Teste do banco: http://localhost:${PORT}/api/backup/connection`
+    );
 });
