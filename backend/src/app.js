@@ -29,13 +29,12 @@ const app = express();
 app.use(express.json());
 
 // Arquivos estáticos da pasta src
-app.use(express.static(__dirname));
+const frontendPath = path.resolve(__dirname, "../../frontend");
 
-// Página inicial
+app.use(express.static(frontendPath));
+
 app.get("/", (req, res) => {
-    res.sendFile(
-        path.join(__dirname, "index.html")
-    );
+    res.sendFile(path.join(frontendPath, "index.html"));
 });
 
 // Rotas da API
