@@ -43,17 +43,8 @@ app.use(
     backupRoutes
 );
 
-// Porta
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
-// Inicia servidor
-app.listen(PORT, () => {
-    console.log("");
-    console.log(
-        `Hotel Backup API rodando em http://localhost:${PORT}`
-    );
-
-    console.log(
-        `Teste do banco: http://localhost:${PORT}/api/backup/connection`
-    );
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`API rodando na porta ${PORT}`);
 });
